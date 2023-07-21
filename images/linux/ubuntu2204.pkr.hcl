@@ -1,4 +1,3 @@
-
 variable "allowed_inbound_ip_addresses" {
   type    = list(string)
   default = []
@@ -63,11 +62,6 @@ variable "image_folder" {
 variable "image_os" {
   type    = string
   default = "ubuntu22"
-}
-
-variable "image_version" {
-  type    = string
-  default = "dev"
 }
 
 variable "imagedata_file" {
@@ -145,19 +139,24 @@ variable "vm_size" {
   default = "Standard_D4s_v4"
 }
 
-source "azure-arm" "build_vhd" {
+locals {
+  version_timestamp = "${formatdate("YYYYMMDD_hhmm", timestamp())}"
+}
+
+source "azure-arm" "build_managed_image" {
+  managed_image_name                     = "devops_agent-${local.version_timestamp}"
   allowed_inbound_ip_addresses           = "${var.allowed_inbound_ip_addresses}"
-  capture_container_name                 = "images"
-  capture_name_prefix                    = "${var.capture_name_prefix}"
   use_azure_cli_auth                     = true
   image_offer                            = "0001-com-ubuntu-server-jammy"
   image_publisher                        = "canonical"
   image_sku                              = "22_04-lts"
   location                               = "${var.location}"
-  os_disk_size_gb                        = "86"
+  # NOTE: Note that the VM type Standard_D2s_v3 used for the agents currently has an ephemeral disk max limit of 50GB
+  # If more storage is needed, we need to also increase the agent specs to get a bigger ephemeral disk limit
+  # for example Standard_D4s_v3 has a limit of 100GB
+  os_disk_size_gb                        = "32" # increase as needed
   os_type                                = "Linux"
-  resource_group_name                    = "${var.resource_group}"
-  storage_account                        = "${var.storage_account}"
+  managed_image_resource_group_name      = "${var.resource_group}"
   subscription_id                        = "${var.subscription_id}"
   vm_size                                = "${var.vm_size}"
 
@@ -171,7 +170,7 @@ source "azure-arm" "build_vhd" {
 }
 
 build {
-  sources = ["source.azure-arm.build_vhd"]
+  sources = ["source.azure-arm.build_managed_image"]
 
   provisioner "shell" {
     execute_command = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
@@ -242,13 +241,13 @@ build {
   }
 
   provisioner "shell" {
-    environment_vars = ["IMAGE_VERSION=${var.image_version}", "IMAGEDATA_FILE=${var.imagedata_file}"]
+    environment_vars = ["IMAGE_VERSION=${local.version_timestamp}", "IMAGEDATA_FILE=${var.imagedata_file}"]
     execute_command  = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
     scripts          = ["${path.root}/scripts/installers/preimagedata.sh"]
   }
 
   provisioner "shell" {
-    environment_vars = ["IMAGE_VERSION=${var.image_version}", "IMAGE_OS=${var.image_os}", "HELPER_SCRIPTS=${var.helper_script_folder}"]
+    environment_vars = ["IMAGE_VERSION=${local.version_timestamp}", "IMAGE_OS=${var.image_os}", "HELPER_SCRIPTS=${var.helper_script_folder}"]
     execute_command  = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
     scripts          = ["${path.root}/scripts/installers/configure-environment.sh"]
   }
@@ -285,58 +284,58 @@ build {
                         "${path.root}/scripts/installers/azcopy.sh",
                         "${path.root}/scripts/installers/azure-cli.sh",
                         "${path.root}/scripts/installers/azure-devops-cli.sh",
-                        "${path.root}/scripts/installers/bicep.sh",
-                        "${path.root}/scripts/installers/aliyun-cli.sh",
-                        "${path.root}/scripts/installers/apache.sh",
-                        "${path.root}/scripts/installers/aws.sh",
-                        "${path.root}/scripts/installers/clang.sh",
-                        "${path.root}/scripts/installers/swift.sh",
-                        "${path.root}/scripts/installers/cmake.sh",
-                        "${path.root}/scripts/installers/codeql-bundle.sh",
+                        # "${path.root}/scripts/installers/bicep.sh",
+                        # "${path.root}/scripts/installers/aliyun-cli.sh",
+                        # "${path.root}/scripts/installers/apache.sh",
+                        # "${path.root}/scripts/installers/aws.sh",
+                        # "${path.root}/scripts/installers/clang.sh",
+                        # "${path.root}/scripts/installers/swift.sh",
+                        # "${path.root}/scripts/installers/cmake.sh",
+                        # "${path.root}/scripts/installers/codeql-bundle.sh",
                         "${path.root}/scripts/installers/containers.sh",
                         "${path.root}/scripts/installers/dotnetcore-sdk.sh",
-                        "${path.root}/scripts/installers/firefox.sh",
-                        "${path.root}/scripts/installers/microsoft-edge.sh",
-                        "${path.root}/scripts/installers/gcc.sh",
-                        "${path.root}/scripts/installers/gfortran.sh",
+                        # "${path.root}/scripts/installers/firefox.sh",
+                        # "${path.root}/scripts/installers/microsoft-edge.sh",
+                        # "${path.root}/scripts/installers/gcc.sh",
+                        # "${path.root}/scripts/installers/gfortran.sh",
                         "${path.root}/scripts/installers/git.sh",
-                        "${path.root}/scripts/installers/github-cli.sh",
-                        "${path.root}/scripts/installers/google-chrome.sh",
-                        "${path.root}/scripts/installers/google-cloud-sdk.sh",
-                        "${path.root}/scripts/installers/haskell.sh",
-                        "${path.root}/scripts/installers/heroku.sh",
-                        "${path.root}/scripts/installers/java-tools.sh",
-                        "${path.root}/scripts/installers/kubernetes-tools.sh",
-                        "${path.root}/scripts/installers/oc.sh",
-                        "${path.root}/scripts/installers/leiningen.sh",
-                        "${path.root}/scripts/installers/miniconda.sh",
-                        "${path.root}/scripts/installers/mono.sh",
-                        "${path.root}/scripts/installers/kotlin.sh",
-                        "${path.root}/scripts/installers/mysql.sh",
+                        # "${path.root}/scripts/installers/github-cli.sh",
+                        # "${path.root}/scripts/installers/google-chrome.sh",
+                        # "${path.root}/scripts/installers/google-cloud-sdk.sh",
+                        # "${path.root}/scripts/installers/haskell.sh",
+                        # "${path.root}/scripts/installers/heroku.sh",
+                        # "${path.root}/scripts/installers/java-tools.sh",
+                        # "${path.root}/scripts/installers/kubernetes-tools.sh",
+                        # "${path.root}/scripts/installers/oc.sh",
+                        # "${path.root}/scripts/installers/leiningen.sh",
+                        # "${path.root}/scripts/installers/miniconda.sh",
+                        # "${path.root}/scripts/installers/mono.sh",
+                        # "${path.root}/scripts/installers/kotlin.sh",
+                        # "${path.root}/scripts/installers/mysql.sh",
                         "${path.root}/scripts/installers/mssql-cmd-tools.sh",
                         "${path.root}/scripts/installers/sqlpackage.sh",
-                        "${path.root}/scripts/installers/nginx.sh",
-                        "${path.root}/scripts/installers/nvm.sh",
+                        # "${path.root}/scripts/installers/nginx.sh",
+                        # "${path.root}/scripts/installers/nvm.sh",
                         "${path.root}/scripts/installers/nodejs.sh",
-                        "${path.root}/scripts/installers/bazel.sh",
-                        "${path.root}/scripts/installers/oras-cli.sh",
-                        "${path.root}/scripts/installers/php.sh",
-                        "${path.root}/scripts/installers/postgresql.sh",
-                        "${path.root}/scripts/installers/pulumi.sh",
-                        "${path.root}/scripts/installers/ruby.sh",
-                        "${path.root}/scripts/installers/r.sh",
-                        "${path.root}/scripts/installers/rust.sh",
-                        "${path.root}/scripts/installers/julia.sh",
-                        "${path.root}/scripts/installers/sbt.sh",
-                        "${path.root}/scripts/installers/selenium.sh",
+                        # "${path.root}/scripts/installers/bazel.sh",
+                        # "${path.root}/scripts/installers/oras-cli.sh",
+                        # "${path.root}/scripts/installers/php.sh",
+                        # "${path.root}/scripts/installers/postgresql.sh",
+                        # "${path.root}/scripts/installers/pulumi.sh",
+                        # "${path.root}/scripts/installers/ruby.sh",
+                        # "${path.root}/scripts/installers/r.sh",
+                        # "${path.root}/scripts/installers/rust.sh",
+                        # "${path.root}/scripts/installers/julia.sh",
+                        # "${path.root}/scripts/installers/sbt.sh",
+                        # "${path.root}/scripts/installers/selenium.sh",
                         "${path.root}/scripts/installers/terraform.sh",
                         "${path.root}/scripts/installers/packer.sh",
                         "${path.root}/scripts/installers/vcpkg.sh",
                         "${path.root}/scripts/installers/dpkg-config.sh",
-                        "${path.root}/scripts/installers/yq.sh",
-                        "${path.root}/scripts/installers/android.sh",
-                        "${path.root}/scripts/installers/pypy.sh",
-                        "${path.root}/scripts/installers/python.sh",
+                        # "${path.root}/scripts/installers/yq.sh",
+                        # "${path.root}/scripts/installers/android.sh",
+                        # "${path.root}/scripts/installers/pypy.sh",
+                        # "${path.root}/scripts/installers/python.sh",
                         "${path.root}/scripts/installers/zstd.sh"
                         ]
   }
@@ -347,17 +346,17 @@ build {
     scripts          = ["${path.root}/scripts/installers/Install-Toolset.ps1", "${path.root}/scripts/installers/Configure-Toolset.ps1"]
   }
 
-  provisioner "shell" {
-    environment_vars = ["HELPER_SCRIPTS=${var.helper_script_folder}", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}"]
-    execute_command  = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
-    scripts          = ["${path.root}/scripts/installers/pipx-packages.sh"]
-  }
+  # provisioner "shell" {
+  #   environment_vars = ["HELPER_SCRIPTS=${var.helper_script_folder}", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}"]
+  #   execute_command  = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
+  #   scripts          = ["${path.root}/scripts/installers/pipx-packages.sh"]
+  # }
 
-  provisioner "shell" {
-    environment_vars = ["HELPER_SCRIPTS=${var.helper_script_folder}", "DEBIAN_FRONTEND=noninteractive", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}"]
-    execute_command  = "/bin/sh -c '{{ .Vars }} {{ .Path }}'"
-    scripts          = ["${path.root}/scripts/installers/homebrew.sh"]
-  }
+  # provisioner "shell" {
+  #   environment_vars = ["HELPER_SCRIPTS=${var.helper_script_folder}", "DEBIAN_FRONTEND=noninteractive", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}"]
+  #   execute_command  = "/bin/sh -c '{{ .Vars }} {{ .Path }}'"
+  #   scripts          = ["${path.root}/scripts/installers/homebrew.sh"]
+  #  }
 
   provisioner "shell" {
     execute_command = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
@@ -382,22 +381,24 @@ build {
     script          = "${path.root}/scripts/base/apt-mock-remove.sh"
   }
 
-  provisioner "shell" {
-    environment_vars = ["IMAGE_VERSION=${var.image_version}", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}"]
-    inline           = ["pwsh -File ${var.image_folder}/SoftwareReport/SoftwareReport.Generator.ps1 -OutputDirectory ${var.image_folder}", "pwsh -File ${var.image_folder}/tests/RunAll-Tests.ps1 -OutputDirectory ${var.image_folder}"]
-  }
+  # TODO: Fix errors in software report that are coming from software that we have removed to make builds faster
 
-  provisioner "file" {
-    destination = "${path.root}/Ubuntu2204-Readme.md"
-    direction   = "download"
-    source      = "${var.image_folder}/software-report.md"
-  }
+  #  provisioner "shell" {
+  #    environment_vars = ["IMAGE_VERSION=${local.version_timestamp}", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}"]
+  #    inline           = ["pwsh -File ${var.image_folder}/SoftwareReport/SoftwareReport.Generator.ps1 -OutputDirectory ${var.image_folder}", "pwsh -File ${var.image_folder}/tests/RunAll-Tests.ps1 -OutputDirectory ${var.image_folder}"]
+  #  }
 
-  provisioner "file" {
-    destination = "${path.root}/software-report.json"
-    direction   = "download"
-    source      = "${var.image_folder}/software-report.json"
-  }
+  #  provisioner "file" {
+  #    destination = "${path.root}/Ubuntu2204-Readme.md"
+  #    direction   = "download"
+  #    source      = "${var.image_folder}/software-report.md"
+  #  }
+
+  #  provisioner "file" {
+  #    destination = "${path.root}/software-report.json"
+  #    direction   = "download"
+  #    source      = "${var.image_folder}/software-report.json"
+  #  }
 
   provisioner "shell" {
     environment_vars = ["HELPER_SCRIPT_FOLDER=${var.helper_script_folder}", "INSTALLER_SCRIPT_FOLDER=${var.installer_script_folder}", "IMAGE_FOLDER=${var.image_folder}"]
@@ -424,5 +425,4 @@ build {
     execute_command = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
     inline          = ["sleep 30", "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"]
   }
-
 }
